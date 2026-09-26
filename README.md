@@ -106,3 +106,7 @@ Keep the keyword-only RAG default. To add semantic search, run Ollama locally, `
 ## Optional corrective retrieval
 
 Set `CHEERIO_RAG_CORRECTIVE=1` to check source/query word overlap and retry a weak match once with terms from the original query. The tool marks weak evidence so the agent can say it doesn't know. This is a cheap lexical quality proxy, not an LLM judge or proof the answer is right. It performs at most two local retrieval passes; it never web-searches private document text.
+
+## Skill review priority
+
+`python -m cheerio skill-scores` ranks recent approved-skill successes and failures in the local 30-event window. The smoothed failure rate helps you decide what to fix first; it never edits or installs a skill automatically. This is a small recent sample, not a benchmark, and it scores runtime success/failure rather than answer quality. `fix-skill NAME` still needs recorded failure evidence, tests and an explicit terminal APPROVE for replacement.
