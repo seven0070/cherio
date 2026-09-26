@@ -18,8 +18,8 @@ def main(argv=None):
     from cheerio.preferences import context as preference_context
     from cheerio.memory import Memory
     print("Bella. /help for commands; /voice for push-to-talk; /exit to leave.")
-    voice_reply = False
     while True:
+        voice_reply = False
         try:
             text = input("you > ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -111,7 +111,6 @@ def main(argv=None):
                         print(f"Voice reply unavailable: {exc}")
             except Exception as exc:
                 print(f"Local model unavailable ({exc}). /task and memory commands still work.")
-        voice_reply = False
 
 
 if __name__ == "__main__":

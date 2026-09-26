@@ -95,3 +95,4 @@ class SafetyTests(unittest.TestCase):
         self.assertIn('ToolCallingAgent(tools=[]', source)
         self.assertNotIn('build_general_agent', source)
         self.assertIn('127.0.0.1:11434', source)
+        self.assertIn('env={}', source)
