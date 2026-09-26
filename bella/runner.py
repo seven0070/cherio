@@ -11,10 +11,16 @@ def main():
     sys.path.insert(0, checkout)
     # Importing and agent execution can print chatter. Keep stdout machine-readable.
     with contextlib.redirect_stdout(sys.stderr):
-        from cheerio.agents import build_general_agent
+        from smolagents import ToolCallingAgent
         from cheerio.config import build_model, resolve_model_config
-        model = build_model(resolve_model_config())
-        answer = build_general_agent(model).run(request["goal"])
+        # A model-only worker, not the general agent: no Python, browser, skills or MCP tools.
+        # Force loopback even when CHEERIO_API_BASE or OPENAI_BASE_URL points to a remote provider.
+        config = resolve_model_config(api_base="http://127.0.0.1:11434/v1", api_key="ollama")
+        model = build_model(config)
+        answer = ToolCallingAgent(tools=[], model=model, max_steps=3).run(
+            "Answer this request using reasoning only. You have no tools or access to live facts. "
+            "Do not claim to have executed any task. Request: " + request["goal"]
+        )
     print(json.dumps({"task_id": request["task_id"], "result": str(answer)}))
 
 

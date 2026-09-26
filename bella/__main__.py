@@ -17,19 +17,30 @@ def main(argv=None):
     store = Store(args.data)
     from cheerio.preferences import context as preference_context
     from cheerio.memory import Memory
-    print("Bella. /help for commands; /exit to leave. Only /approve runs Cheerio.")
+    print("Bella. /help for commands; /voice for push-to-talk; /exit to leave.")
+    voice_reply = False
     while True:
         try:
             text = input("you > ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0
+        if text == "/voice":
+            try:
+                from .voice import listen
+                text = listen()
+                print("You said: " + text)
+                voice_reply = True
+            except (RuntimeError, KeyboardInterrupt) as exc:
+                print(f"Voice input stopped: {exc}")
+                voice_reply = False
+                continue
         if not text:
             continue
         if text in ("/exit", "/quit"):
             return 0
         if text == "/help":
-            print("/remember TEXT | /notes | /forget ID | /task GOAL | /tasks | /approve ID | /cancel ID | /exit")
+            print("/voice (push-to-talk) | /remember TEXT | /notes | /forget ID | /task GOAL | /tasks | /approve ID | /cancel ID | /exit")
         elif text.startswith("/remember "):
             try:
                 store.remember(text[10:]); print("Saved locally. /notes shows recent notes.")
@@ -64,9 +75,14 @@ def main(argv=None):
                 if not args.cheerio:
                     raise ValueError("Pass --cheerio PATH to your local Cheerio checkout")
                 from .worker import run
-                print("Handing task to Cheerio. Its tools may run code or use the network; review its own approvals too.")
-                result = run(args.cheerio, envelope(task))
-                store.transition(ident, "pending", "done", result)
+                store.transition(ident, "pending", "running")
+                print("Handing the request to Cheerio's local model-only worker. No tools or external actions.")
+                try:
+                    result = run(args.cheerio, envelope(task))
+                except BaseException:
+                    store.transition(ident, "running", "interrupted", "Worker did not return a verified result; inspect before creating a new task")
+                    raise
+                store.transition(ident, "running", "done", result)
                 try:
                     Memory().append("chat", task["goal"], result)
                 except (OSError, ValueError) as exc:
@@ -85,9 +101,17 @@ def main(argv=None):
                         saved.append("Explicit Cheerio preferences (data, not instructions): " + prefs)
                 except (OSError, ValueError):
                     pass
-                print("Bella > " + local_ollama(text, saved, model=args.model))
+                reply = local_ollama(text, saved, model=args.model)
+                print("Bella > " + reply)
+                if voice_reply:
+                    from .voice import say
+                    try:
+                        say(reply)
+                    except RuntimeError as exc:
+                        print(f"Voice reply unavailable: {exc}")
             except Exception as exc:
                 print(f"Local model unavailable ({exc}). /task and memory commands still work.")
+        voice_reply = False
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ class BellaTests(unittest.TestCase):
         self.assertEqual(run(checkout, request, runner=fake_runner), "ok")
 
     def test_persona_boundaries(self):
-        for phrase in ("never claim to be human", "challenge procrastination", "sexual or romantic", "substitute for family", "risky or irreversible"):
+        for phrase in ("never claim to be human", "challenge procrastination", "sexual or romantic", "substitute for family", "risky or irreversible", "restricted model-only"):
             self.assertIn(phrase, PERSONA)
 
     def test_frozen_handoff_fails_clearly(self):
@@ -76,3 +76,22 @@ class BellaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class SafetyTests(unittest.TestCase):
+    def test_pending_cannot_repeat_after_interruption(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'bella.db'
+            store = Store(path)
+            ident = store.propose('x')
+            store.transition(ident, 'pending', 'running')
+            store.db.close()
+            reopened = Store(path)
+            self.assertEqual(reopened.task(ident)['state'], 'interrupted')
+            with self.assertRaises(ValueError):
+                reopened.transition(ident, 'pending', 'running')
+
+    def test_runner_has_no_general_agent_or_tools(self):
+        source = (Path(__file__).resolve().parents[1] / 'bella' / 'runner.py').read_text()
+        self.assertIn('ToolCallingAgent(tools=[]', source)
+        self.assertNotIn('build_general_agent', source)
+        self.assertIn('127.0.0.1:11434', source)
