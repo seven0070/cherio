@@ -7,7 +7,7 @@ import sys
 
 from .agents import build_general_agent, build_web_agent
 from .config import build_model, resolve_model_config
-from .startup import setup_local, select_config, check_update
+from .startup import setup_local, select_config, check_update, saved_local_model
 from .skills import draft_skill, save_skill, test_skill
 from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
@@ -159,7 +159,19 @@ def main(argv=None):
     if args.auto_model and os.environ.get("CHEERIO_GATEWAY_MODE") == "omniroute":
         print("--auto-model cannot be combined with OmniRoute auto-routing", file=sys.stderr)
         return 2
-    config, route_source = select_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
+    # First interactive use cannot silently fall through to the legacy sample model.
+    if args.mode in ("chat", "web") and not args.auto_model and not any((args.model, args.api_base,
+            os.environ.get("CHEERIO_MODEL"), os.environ.get("OPENAI_MODEL"),
+            os.environ.get("CHEERIO_API_BASE"), os.environ.get("OPENAI_BASE_URL"),
+            os.environ.get("CHEERIO_GATEWAY_MODE"))) and not saved_local_model():
+        print("Choose an installed Ollama model before the first run.")
+        if setup_local() != 0 or not saved_local_model():
+            return 1
+    try:
+        config, route_source = select_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
+    except ValueError as exc:
+        print(f"Model setup needed: {exc}", file=sys.stderr)
+        return 1
     if route_source != "configured":
         print(route_source)
     if args.auto_model:
