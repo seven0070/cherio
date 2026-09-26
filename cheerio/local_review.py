@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import json
 from urllib.parse import urlsplit
-from urllib.request import Request, build_opener, HTTPHandler, HTTPSHandler, HTTPRedirectHandler
-from urllib.error import HTTPError
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from .skills import validate
 
@@ -45,6 +44,10 @@ def assess_local(candidate, results, config, *, opener=None):
     """Bounded advisory assessment over loopback; never executes returned text."""
     validate(candidate)
     endpoint = _local_endpoint(config)
+    # A gateway can occupy a loopback port yet dispatch prompts to cloud models.
+    # Only Ollama's local endpoint is allowed for this preview.
+    if urlsplit(endpoint).port != 11434:
+        raise ValueError("Local review requires Ollama at port 11434")
     model = config.get("model_id")
     if not isinstance(model, str) or not model or len(model) > 100:
         raise ValueError("Choose a local model before review")
