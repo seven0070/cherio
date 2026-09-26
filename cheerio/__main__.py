@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from .agents import build_general_agent, build_web_agent
 from .config import build_model, resolve_model_config
+from .startup import setup_local, select_config, check_update
 from .skills import draft_skill, save_skill, test_skill
 from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
@@ -46,7 +48,7 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models", "passport"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models", "passport", "setup", "update"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
@@ -57,6 +59,13 @@ def main(argv=None):
     parser.add_argument("--endpoint", action="append", default=[], help="additional OpenAI-compatible endpoint to inspect")
     parser.add_argument("--scan-folder", action="append", default=[], help="explicit folder to scan for GGUF files (no whole-drive crawl)")
     args = parser.parse_args(argv)
+
+    if args.mode == "setup":
+        return setup_local()
+    if args.mode == "update":
+        item = check_update()
+        print(f"Update available: {item['tag']} - {item['url']} (review and install manually)" if item else "No newer stable release found or update check unavailable. Nothing installed.")
+        return 0
 
     if args.mode == "passport":
         try:
@@ -147,7 +156,12 @@ def main(argv=None):
             return 2
         return 0
 
-    config = resolve_model_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
+    if args.auto_model and os.environ.get("CHEERIO_GATEWAY_MODE") == "omniroute":
+        print("--auto-model cannot be combined with OmniRoute auto-routing", file=sys.stderr)
+        return 2
+    config, route_source = select_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
+    if route_source != "configured":
+        print(route_source)
     if args.auto_model:
         if args.mode != "web" or args.model or args.api_base or args.api_key:
             print("--auto-model is for one-shot web mode without explicit model settings", file=sys.stderr)
