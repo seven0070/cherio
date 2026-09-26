@@ -98,3 +98,19 @@ Install `pip install "smolagents[mcp,toolkit,openai]>=1.26" "mcp>=1.9,<2" "webso
 ```
 
 For a remote server use `"transport": "streamable-http"` and `"url": "https://example.com/mcp"` instead of command/args/env; keep `allowed_tools` with exact tool names. Only explicitly enabled entries with an explicit tool allowlist start; disabled entries do nothing. Chat fails closed if an enabled server cannot connect or tool names clash; connections close on exit. Stdio launches a local process and MCP tools may read, write, send or run code with your privileges. Only configure servers you trust and review their tools and access before enabling them. Do not put passwords in the JSON file; use environment variables or a local secret manager. This is configuration-driven execution, not a sandbox or tool-by-tool approval gate. No live server was used in the key-free test suite.
+
+## Optional local semantic search
+
+Keep the keyword-only RAG default. To add semantic search, run Ollama locally, `ollama pull embeddinggemma`, then `python -m cheerio rag embed` after indexing folders. `python -m cheerio rag hybrid "question"` combines keyword and vector ranks. To let chat use hybrid search, set `CHEERIO_RAG_SEMANTIC=1` before starting it. Set `CHEERIO_EMBED_MODEL` to change the local Ollama embedding model, then rebuild vectors. All embeddings stay in the same local SQLite DB; the code contacts only `127.0.0.1:11434`. Reindexing or forgetting any folder clears vectors to avoid stale references; re-run `rag embed`. This is a simple full scan/cosine search, not ANN, limited to 3,000 chunks, and will slow down on large indexes. If Ollama is unavailable, chat falls back to keyword search. Use a local chat model too if documents must never leave the device.
+
+## Optional corrective retrieval
+
+Set `CHEERIO_RAG_CORRECTIVE=1` to check source/query word overlap and retry a weak match once with terms from the original query. The tool marks weak evidence so the agent can say it doesn't know. This is a cheap lexical quality proxy, not an LLM judge or proof the answer is right. It performs at most two local retrieval passes; it never web-searches private document text.
+
+## Skill review priority
+
+`python -m cheerio skill-scores` ranks recent approved-skill successes and failures in the local 30-event window. The smoothed failure rate helps you decide what to fix first; it never edits or installs a skill automatically. This is a small recent sample, not a benchmark, and it scores runtime success/failure rather than answer quality. `fix-skill NAME` still needs recorded failure evidence, tests and an explicit terminal APPROVE for replacement.
+
+## MCP per-agent scope
+
+Each enabled MCP server may set `"agents": ["chat"]` or `["web"]` (or both). The default is chat only. Cheerio opens only servers assigned to the active agent and exposes only their exact `allowed_tools` names. This routes tools, not actions: an allowed tool can still have broad side effects, and the server's startup code itself runs with local privileges.

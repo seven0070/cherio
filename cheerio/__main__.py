@@ -11,7 +11,9 @@ from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
 from .core_proposals import propose_core
 from .rag import index_folder, search as search_documents, forget_folder
+from .semantic_rag import build_vectors, hybrid_search
 from .mcp_tools import connect_mcp_servers
+from .skill_scores import rank_skills
 
 
 def chat_loop(agent, memory=None):
@@ -41,16 +43,21 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
     parser.add_argument("--api-key", help="API key for the endpoint")
     args = parser.parse_args(argv)
 
+    if args.mode == "skill-scores":
+        for item in rank_skills():
+            print(f"{item['name']}: {item['failure']} failures / {item['success']} successes; review priority {item['failure_rate']:.3f}")
+        return 0
+
     if args.mode == "rag":
-        if not args.task or args.task[0] not in {"index", "search", "forget"} or len(args.task) < 2:
-            print("Use: rag index FOLDER | rag search QUERY | rag forget FOLDER", file=sys.stderr)
+        if not args.task or args.task[0] not in {"index", "search", "forget", "embed", "hybrid"} or (len(args.task) < 2 and args.task[0] != "embed"):
+            print("Use: rag index FOLDER | rag search QUERY | rag forget FOLDER | rag embed | rag hybrid QUERY", file=sys.stderr)
             return 2
         operation, target = args.task[0], " ".join(args.task[1:])
         try:
@@ -58,6 +65,11 @@ def main(argv=None):
                 print(index_folder(target))
             elif operation == "search":
                 for result in search_documents(target):
+                    print(result)
+            elif operation == "embed":
+                print(f"Embedded {build_vectors()} chunks using local Ollama")
+            elif operation == "hybrid":
+                for result in hybrid_search(target):
                     print(result)
             else:
                 forget_folder(target)
@@ -155,12 +167,17 @@ def main(argv=None):
             print(f"MCP connection failed: {exc}", file=sys.stderr)
             return 1
     else:
-        agent = build_web_agent(model)
-        task = " ".join(args.task).strip()
-        if not task:
-            task = input("web task > ").strip()
-        if task:
-            print(f"\ncheerio > {agent.run(task)}")
+        try:
+            with connect_mcp_servers(agent="web") as mcp_tools:
+                agent = build_web_agent(model, extra_tools=mcp_tools)
+                task = " ".join(args.task).strip()
+                if not task:
+                    task = input("web task > ").strip()
+                if task:
+                    print(f"\ncheerio > {agent.run(task)}")
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"MCP connection failed: {exc}", file=sys.stderr)
+            return 1
     return 0
 
 
