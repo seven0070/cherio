@@ -21,6 +21,12 @@ class StartupTests(unittest.TestCase):
         with patch.object(s.shutil, 'which', return_value='ollama'), patch.object(s, '_vram_mb', return_value=None), patch.object(s, '_ram_mb', return_value=None):
             self.assertEqual(s.setup_local(input_fn=lambda _: '1', output=lambda _: None, runner=runner), 1)
 
+    def test_first_chat_runs_setup_before_building_agent(self):
+        from cheerio.__main__ import main
+        with patch('cheerio.__main__.saved_local_model', return_value=None), patch('cheerio.__main__.setup_local', return_value=1) as setup, patch.dict('os.environ', {}, clear=True):
+            self.assertEqual(main(['chat']), 1)
+            setup.assert_called_once()
+
     def test_gateway_preflight_and_local_fallback(self):
         env = {'CHEERIO_GATEWAY_MODE': 'omniroute', 'CHEERIO_OMNIROUTE_KEY': 'hidden'}
         cfg, source = s.select_config(env=env, check=lambda url, key, timeout: {'data':[{'id':'auto'}]})
