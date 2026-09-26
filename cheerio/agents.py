@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def build_general_agent(model, max_steps=8):
+def build_general_agent(model, max_steps=8, extra_tools=()):
     """Everyday agent: answers questions, searches, reads pages, runs Python."""
     from smolagents import (
         DuckDuckGoSearchTool,
@@ -23,6 +23,7 @@ def build_general_agent(model, max_steps=8):
             PythonInterpreterTool(),
             *load_skills(),
             build_rag_tool(),
+            *extra_tools,
         ],
         model=model,
         max_steps=max_steps,

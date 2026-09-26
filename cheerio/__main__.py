@@ -11,6 +11,7 @@ from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
 from .core_proposals import propose_core
 from .rag import index_folder, search as search_documents, forget_folder
+from .mcp_tools import connect_mcp_servers
 
 
 def chat_loop(agent, memory=None):
@@ -147,7 +148,12 @@ def main(argv=None):
 
     model = build_model(config)
     if args.mode == "chat":
-        chat_loop(build_general_agent(model), Memory())
+        try:
+            with connect_mcp_servers() as mcp_tools:
+                chat_loop(build_general_agent(model, extra_tools=mcp_tools), Memory())
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"MCP connection failed: {exc}", file=sys.stderr)
+            return 1
     else:
         agent = build_web_agent(model)
         task = " ".join(args.task).strip()

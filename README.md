@@ -88,3 +88,13 @@ Approved skill calls now record success or failure in local memory. To suggest a
 ## Local document search (RAG preview)
 
 Explicitly index a folder with `python -m cheerio rag index "C:\Users\you\Documents\Notes"`, then use `python -m cheerio rag search "question or keywords"` or ask Cheerio in chat. `rag forget FOLDER` removes a folder's indexed text. Only `.txt`, `.md`, `.rst`, `.csv`, `.json` UTF-8 files are read (up to 2 MB each, 1000 files per folder); hidden/symlink folders are skipped. The local SQLite FTS5 index lives in `%USERPROFILE%\.cheerio\rag.sqlite3` (override `CHEERIO_RAG_DB`) and remains on your machine unless you point a model at a cloud endpoint. Search results show file paths and excerpts for checking sources. This is keyword RAG, not embeddings or a PDF/Office reader; similar wording may be missed. Re-run indexing after document changes. Indexed content is plain text, so protect that DB and review the folder before indexing. Retrieved text is untrusted data, not an instruction to follow.
+
+## MCP servers (opt-in)
+
+Install `pip install "smolagents[mcp,toolkit,openai]>=1.26" "mcp>=1.9,<2" "websockets>=13"` to use MCP. The current smolagents 1.26 MCP adapter does not yet work with MCP SDK 2.x; pin 1.x until upstream supports 2.x. Cheerio reads `%USERPROFILE%\.cheerio\mcp.json` (override `CHEERIO_MCP_CONFIG`) when chat starts. No file means no MCP connection. Example:
+
+```json
+{"servers": [{"name": "my-local-server", "enabled": true, "transport": "stdio", "command": "python", "args": ["C:\\path\\to\\server.py"], "env": {}, "allowed_tools": ["search"]}]}
+```
+
+For a remote server use `"transport": "streamable-http"` and `"url": "https://example.com/mcp"` instead of command/args/env; keep `allowed_tools` with exact tool names. Only explicitly enabled entries with an explicit tool allowlist start; disabled entries do nothing. Chat fails closed if an enabled server cannot connect or tool names clash; connections close on exit. Stdio launches a local process and MCP tools may read, write, send or run code with your privileges. Only configure servers you trust and review their tools and access before enabling them. Do not put passwords in the JSON file; use environment variables or a local secret manager. This is configuration-driven execution, not a sandbox or tool-by-tool approval gate. No live server was used in the key-free test suite.
