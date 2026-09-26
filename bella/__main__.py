@@ -1,4 +1,4 @@
-"""Bella CLI. Run `py -m bella` in Windows PowerShell."""
+"""Bella CLI. Run `py -m cheerio bella` in Windows PowerShell."""
 from __future__ import annotations
 
 import argparse
