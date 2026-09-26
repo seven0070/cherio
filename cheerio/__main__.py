@@ -16,6 +16,7 @@ from .mcp_tools import connect_mcp_servers
 from .skill_scores import rank_skills
 from .cognee_memory import add_note, search_notes
 from .model_discovery import inspect_endpoints, find_gguf
+from .model_passport import refresh_passports, read_passports, route, record_feedback
 
 
 def chat_loop(agent, memory=None):
@@ -45,16 +46,38 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models", "passport"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
     parser.add_argument("--api-key", help="API key for the endpoint")
+    parser.add_argument("--auto-model", action="store_true", help="select a tested local tool-calling model from passports for a one-shot web task")
     parser.add_argument("--remote", action="store_true", help="list configured remote endpoint models (may contact a paid provider)")
     parser.add_argument("--probe", action="store_true", help="try a small live tool-call generation for every listed model; remote probes may incur charges")
     parser.add_argument("--endpoint", action="append", default=[], help="additional OpenAI-compatible endpoint to inspect")
     parser.add_argument("--scan-folder", action="append", default=[], help="explicit folder to scan for GGUF files (no whole-drive crawl)")
     args = parser.parse_args(argv)
+
+    if args.mode == "passport":
+        try:
+            operation = args.task[0] if args.task else "list"
+            if operation == "refresh":
+                print(f"Examined {len(refresh_passports())} local models (three small calls each).")
+            elif operation == "list":
+                for item in read_passports():
+                    print(f"{item['model']} at {item['endpoint']}: {item['exam']} feedback={item['feedback']}")
+            elif operation == "route" and len(args.task) > 1:
+                print(route(" ".join(args.task[1:])))
+            elif operation == "feedback" and len(args.task) == 4:
+                record_feedback(args.task[1], args.task[2], args.task[3])
+                print("Feedback saved")
+            else:
+                print("Use: passport refresh | list | route TASK | feedback ENDPOINT MODEL good|bad", file=sys.stderr)
+                return 2
+        except (ValueError, OSError) as exc:
+            print(f"Passport unavailable: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     if args.mode == "models":
         if args.probe and args.remote:
@@ -125,6 +148,13 @@ def main(argv=None):
         return 0
 
     config = resolve_model_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
+    if args.auto_model:
+        if args.mode != "web" or args.model or args.api_base or args.api_key:
+            print("--auto-model is for one-shot web mode without explicit model settings", file=sys.stderr)
+            return 2
+        selected = route(" ".join(args.task))
+        config = resolve_model_config(model=selected["model"], api_base=selected["endpoint"], api_key="local")
+        print(f"Route: {selected['category']} -> {selected['model']} ({selected['reason']})")
     print(f"model: {config['model_id']}  endpoint: {config['api_base']}")
     if args.mode == "propose-core":
         try:
