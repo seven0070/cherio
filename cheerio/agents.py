@@ -14,6 +14,7 @@ def build_general_agent(model, max_steps=8, extra_tools=()):
 
     from .skills import load_skills
     from .rag import build_rag_tool
+    from .cognee_memory import enabled, build_cognee_tool
 
     return ToolCallingAgent(
         tools=[
@@ -23,6 +24,7 @@ def build_general_agent(model, max_steps=8, extra_tools=()):
             PythonInterpreterTool(),
             *load_skills(),
             build_rag_tool(),
+            *([build_cognee_tool()] if enabled() else []),
             *extra_tools,
         ],
         model=model,

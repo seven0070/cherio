@@ -14,6 +14,7 @@ from .rag import index_folder, search as search_documents, forget_folder
 from .semantic_rag import build_vectors, hybrid_search
 from .mcp_tools import connect_mcp_servers
 from .skill_scores import rank_skills
+from .cognee_memory import add_note, search_notes
 
 
 def chat_loop(agent, memory=None):
@@ -43,12 +44,24 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
     parser.add_argument("--api-key", help="API key for the endpoint")
     args = parser.parse_args(argv)
+
+    if args.mode == "cognee":
+        if not args.task or args.task[0] not in {"add", "search"} or len(args.task) < 2:
+            print("Use: cognee add NOTE | cognee search QUESTION", file=sys.stderr)
+            return 2
+        try:
+            text = " ".join(args.task[1:])
+            print(add_note(text) if args.task[0] == "add" else search_notes(text))
+        except (RuntimeError, ValueError, OSError, KeyError) as exc:
+            print(f"Cognee unavailable: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     if args.mode == "skill-scores":
         for item in rank_skills():
