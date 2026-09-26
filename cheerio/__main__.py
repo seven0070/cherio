@@ -7,7 +7,9 @@ import sys
 
 from .agents import build_general_agent, build_web_agent
 from .config import build_model, resolve_model_config
-from .startup import setup_local, select_config, check_update, saved_local_model
+from .startup import setup_local, select_config, check_update
+from .local_review import assess_local, decide
+from .startup import saved_local_model
 from .skills import draft_skill, save_skill, test_skill
 from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
@@ -44,6 +46,21 @@ def chat_loop(agent, memory=None):
             memory.append("chat", task, answer)
         first = False
         print(f"\ncheerio > {answer}")
+
+
+def review_gate(candidate, results, config):
+    """Advisory local check; deterministic tests and terminal consent remain mandatory."""
+    try:
+        assessment = assess_local(candidate, results, config)
+        directive, explanation = decide(results, assessment)
+    except (ValueError, KeyError, IndexError, TypeError, OSError, TimeoutError) as exc:
+        assessment = None
+        directive, explanation = decide(results)
+        print(f"Local review unavailable: {type(exc).__name__}")
+    print(f"Review gate: {directive} - {explanation}")
+    if assessment is not None and directive != "ASK_USER":
+        print(f"Review concerns: {assessment.get('concerns', [])}; suggested tests: {assessment.get('suggested_tests', [])}")
+    return directive
 
 
 def main(argv=None):
@@ -208,7 +225,11 @@ def main(argv=None):
             print("Proposed replacement (not installed):\n" + candidate["code"])
             for result in results:
                 print(result)
+            directive = review_gate(candidate, results, config)
             print(f"Proposal: {proposal}")
+            if directive != "ASK_USER":
+                print("Not installed. Review or add tests before trying again.")
+                return 0
             answer = input("Replace approved skill with this exact proposal? Type APPROVE: ").strip()
             if approve_skill_fix(name, answer, expected_digest=digest):
                 print("Replacement saved; start a new chat to load it.")
@@ -233,6 +254,9 @@ def main(argv=None):
         if not all(result["pass"] for result in results):
             print("Tests failed. Nothing saved.")
             return 1
+        if review_gate(spec, results, config) != "ASK_USER":
+            print("Not saved. Review or add tests before trying again.")
+            return 0
         # Consent is read from the terminal by Cheerio itself, never from the model output.
         if input("Save and enable this exact code on future runs? Type APPROVE: ").strip() != "APPROVE":
             print("Not saved.")
