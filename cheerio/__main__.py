@@ -167,12 +167,17 @@ def main(argv=None):
             print(f"MCP connection failed: {exc}", file=sys.stderr)
             return 1
     else:
-        agent = build_web_agent(model)
-        task = " ".join(args.task).strip()
-        if not task:
-            task = input("web task > ").strip()
-        if task:
-            print(f"\ncheerio > {agent.run(task)}")
+        try:
+            with connect_mcp_servers(agent="web") as mcp_tools:
+                agent = build_web_agent(model, extra_tools=mcp_tools)
+                task = " ".join(args.task).strip()
+                if not task:
+                    task = input("web task > ").strip()
+                if task:
+                    print(f"\ncheerio > {agent.run(task)}")
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"MCP connection failed: {exc}", file=sys.stderr)
+            return 1
     return 0
 
 
