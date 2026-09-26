@@ -60,3 +60,15 @@ New capabilities plug in as extra smolagents tools or new agent builders in `che
 ## Source and license
 
 Built on [smolagents](https://github.com/huggingface/smolagents) by Hugging Face (Apache-2.0). The earlier v1 starter was inspired by [awesome-llm-apps / Function Tools Agent](https://github.com/Shubhamsaboo/awesome-llm-apps/tree/main/ai_agent_framework_crash_course/openai_sdk_crash_course/3_tool_using_agent/3_1_function_tools) by Shubham Saboo (MIT); it was replaced by this smolagents base layer and lives in git history. This repository is under the MIT License in `LICENSE`.
+
+## Self-building skills (stage 1, experimental)
+
+Cheerio can draft a small, **reviewed** Python tool from your request using the configured model (local Ollama by default). For example:
+
+```powershell
+python -m cheerio skill "turn a Celsius number into Fahrenheit"
+```
+
+It shows the exact generated code and runs the generated input/expected tests in isolated short-lived Python processes. **Nothing is saved on a test failure.** Inspect the code and results. Type `APPROVE` at the terminal prompt to save and enable it; any other input leaves it unsaved. A model cannot set this approval. Skills live in `%USERPROFILE%\.cheerio\skills\` (override with `CHEERIO_SKILLS_DIR`), as JSON with code and test cases. Existing skills are loaded as smolagents tools the next time `chat` starts. To disable one, remove its JSON file while Cheerio is stopped. Nothing changes the core code or main branch automatically.
+
+Stage 1 deliberately permits only a tiny subset of Python: a single `def name(text): return ...` with approved basic builtins, no imports, attribute access, file/network/process APIs, loops, or overwrite of an existing skill. The validator rejects other code; each call runs in a fresh process with a three-second timeout and output/input limits. **This is not a security boundary against malicious code:** Python and the existing general agent's `PythonInterpreterTool` are not OS-sandboxed, especially on Windows. Do not use untrusted prompts/code on a machine with sensitive files; run Cheerio under a separate low-privilege user or a proper container if hostile input is possible. Test expectations are model-generated, so passing them does not prove correctness. This initial form is meant for short, pure text transformations, not arbitrary new system powers. No skill is installed or executed during draft generation before tests, and failures need manual correction and rerun.
