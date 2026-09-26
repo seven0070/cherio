@@ -30,7 +30,7 @@ def build_general_agent(model, max_steps=8, extra_tools=()):
     )
 
 
-def build_web_agent(model, max_steps=10):
+def build_web_agent(model, max_steps=10, extra_tools=()):
     """Web agent: digs through the web to complete a research task."""
     from smolagents import DuckDuckGoSearchTool, ToolCallingAgent, VisitWebpageTool
 
@@ -38,6 +38,7 @@ def build_web_agent(model, max_steps=10):
         tools=[
             DuckDuckGoSearchTool(max_results=8),
             VisitWebpageTool(max_output_length=12000),
+            *extra_tools,
         ],
         model=model,
         max_steps=max_steps,
