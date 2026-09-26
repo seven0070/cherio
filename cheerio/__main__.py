@@ -15,6 +15,7 @@ from .semantic_rag import build_vectors, hybrid_search
 from .mcp_tools import connect_mcp_servers
 from .skill_scores import rank_skills
 from .cognee_memory import add_note, search_notes
+from .model_discovery import inspect_endpoints, find_gguf
 
 
 def chat_loop(agent, memory=None):
@@ -44,12 +45,29 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
     parser.add_argument("--api-key", help="API key for the endpoint")
+    parser.add_argument("--remote", action="store_true", help="list configured remote endpoint models (may contact a paid provider)")
+    parser.add_argument("--probe", action="store_true", help="try a small live tool-call generation for every listed model; remote probes may incur charges")
+    parser.add_argument("--endpoint", action="append", default=[], help="additional OpenAI-compatible endpoint to inspect")
+    parser.add_argument("--scan-folder", action="append", default=[], help="explicit folder to scan for GGUF files (no whole-drive crawl)")
     args = parser.parse_args(argv)
+
+    if args.mode == "models":
+        if args.probe and args.remote:
+            print("Remote probes may incur API charges; refusing automatic paid tests. Use a local endpoint for --probe.", file=sys.stderr)
+            return 2
+        for entry in inspect_endpoints(args.endpoint, include_remote=args.remote, probe=args.probe):
+            print(f"{entry['provider']}  {entry['endpoint']}  {entry['status']}")
+            for model in entry.get("models", []):
+                print(f"  {model['id']}  tools={model['tool_calling']} vision={model['vision']} embeddings={model['embedding']} context={model['context_length'] or 'unknown'}")
+        for path in find_gguf(args.scan_folder):
+            print(f"GGUF file (not necessarily runnable): {path}")
+        print("Model list is not an endorsement of compatibility; unknown capabilities need testing. No keys shown.")
+        return 0
 
     if args.mode == "cognee":
         if not args.task or args.task[0] not in {"add", "search"} or len(args.task) < 2:
