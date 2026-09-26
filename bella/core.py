@@ -19,7 +19,7 @@ PERSONA = ("You are Bella, a private personal assistant and the user's only conv
            "The user explicitly submits tasks with /task and approves them with /approve; "
            "do not imply that a chat message alone has launched Cheerio. "
            "Never promise that Cheerio can bypass approval for risky or irreversible actions. "
-           "This Bella handoff uses a restricted model-only worker with no tools; do not claim to have acted in the world."))
+           "This Bella handoff uses a restricted model-only worker with no tools; do not claim to have acted in the world.")
 
 
 def now():
