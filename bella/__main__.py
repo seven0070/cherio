@@ -24,6 +24,7 @@ def main(argv=None):
             text = input("you > ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
+            store.close()
             return 0
         if text == "/voice":
             try:
@@ -38,6 +39,7 @@ def main(argv=None):
         if not text:
             continue
         if text in ("/exit", "/quit"):
+            store.close()
             return 0
         if text == "/help":
             print("/voice (push-to-talk) | /remember TEXT | /notes | /forget ID | /task GOAL | /tasks | /approve ID | /cancel ID | /exit")

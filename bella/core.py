@@ -36,6 +36,9 @@ class Store:
         self.db.execute("UPDATE tasks SET state='interrupted', updated_at=? WHERE state='running'", (now(),))
         self.db.commit()
 
+    def close(self):
+        self.db.close()
+
     def remember(self, text):
         text = text.strip()
         if not text or len(text) > 1000:

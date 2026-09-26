@@ -15,6 +15,7 @@ class BellaTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.store = Store(Path(self.tmp.name) / "data" / "bella.db")
+        self.addCleanup(self.store.close)
 
     def test_explicit_notes_and_forget(self):
         self.store.remember("likes short answers")
@@ -89,6 +90,7 @@ class SafetyTests(unittest.TestCase):
             self.assertEqual(reopened.task(ident)['state'], 'interrupted')
             with self.assertRaises(ValueError):
                 reopened.transition(ident, 'pending', 'running')
+            reopened.close()
 
     def test_runner_has_no_general_agent_or_tools(self):
         source = (Path(__file__).resolve().parents[1] / 'bella' / 'runner.py').read_text()
