@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import re
 import sqlite3
@@ -17,14 +18,20 @@ def index_path():
     return Path(os.environ.get("CHEERIO_RAG_DB", str(Path.home() / ".cheerio" / "rag.sqlite3")))
 
 
+@contextmanager
 def _connect(db):
     db = Path(db)
     db.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db)
-    conn.execute("CREATE TABLE IF NOT EXISTS roots(root TEXT PRIMARY KEY)")
-    conn.execute("CREATE TABLE IF NOT EXISTS chunks(path TEXT NOT NULL, root TEXT NOT NULL, position INTEGER NOT NULL, content TEXT NOT NULL, PRIMARY KEY(path, position))")
-    conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(path UNINDEXED, content)")
-    return conn
+    try:
+        with conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS roots(root TEXT PRIMARY KEY)")
+            conn.execute("CREATE TABLE IF NOT EXISTS chunks(path TEXT NOT NULL, root TEXT NOT NULL, position INTEGER NOT NULL, content TEXT NOT NULL, PRIMARY KEY(path, position))")
+            conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(path UNINDEXED, content)")
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def _scan(root):
