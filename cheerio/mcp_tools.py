@@ -24,7 +24,7 @@ def load_servers(path=None):
         raise ValueError("At most 5 MCP servers")
     result = []
     for entry in data["servers"]:
-        if not isinstance(entry, dict) or not set(entry) <= {"name", "enabled", "transport", "url", "command", "args", "env", "allowed_tools"}:
+        if not isinstance(entry, dict) or not set(entry) <= {"name", "enabled", "transport", "url", "command", "args", "env", "allowed_tools", "agents"}:
             raise ValueError("Unknown MCP server configuration")
         name = entry.get("name")
         if not isinstance(name, str) or not name.strip() or len(name) > 60:
@@ -34,35 +34,40 @@ def load_servers(path=None):
         allowed = entry.get("allowed_tools")
         if not isinstance(allowed, list) or not allowed or len(allowed) > 20 or not all(isinstance(x, str) and x.strip() for x in allowed) or len(set(allowed)) != len(allowed):
             raise ValueError("Enabled MCP servers need an explicit allowed_tools list (up to 20 names)")
+        agents = entry.get("agents", ["chat"])
+        if not isinstance(agents, list) or not agents or not set(agents) <= {"chat", "web"}:
+            raise ValueError("MCP agents must be chat and/or web")
         transport = entry.get("transport")
         if transport == "streamable-http":
-            if set(entry) - {"name", "enabled", "transport", "url", "allowed_tools"}:
+            if set(entry) - {"name", "enabled", "transport", "url", "allowed_tools", "agents"}:
                 raise ValueError("HTTP MCP servers accept only a URL")
             url = entry.get("url")
             parsed = urlparse(url) if isinstance(url, str) else None
             if not parsed or parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
                 raise ValueError("Invalid HTTP MCP URL")
-            result.append((name, {"url": url, "transport": transport}, allowed))
+            result.append((name, {"url": url, "transport": transport}, allowed, agents))
         elif transport == "stdio":
-            if set(entry) - {"name", "enabled", "transport", "command", "args", "env", "allowed_tools"}:
+            if set(entry) - {"name", "enabled", "transport", "command", "args", "env", "allowed_tools", "agents"}:
                 raise ValueError("Invalid stdio MCP configuration")
             command, args, env = entry.get("command"), entry.get("args", []), entry.get("env", {})
             if not isinstance(command, str) or not command.strip() or not isinstance(args, list) or not all(isinstance(a, str) for a in args):
                 raise ValueError("Invalid stdio command or arguments")
             if not isinstance(env, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in env.items()):
                 raise ValueError("Invalid stdio environment")
-            result.append((name, {"command": command, "args": args, "env": env}, allowed))
+            result.append((name, {"command": command, "args": args, "env": env}, allowed, agents))
         else:
             raise ValueError("Supported MCP transports: streamable-http or stdio")
-    if len({name for name, _, _ in result}) != len(result):
+    if len({name for name, _, _, _ in result}) != len(result):
         raise ValueError("Duplicate MCP server names")
     return result
 
 
 @contextmanager
-def connect_mcp_servers(path=None):
+def connect_mcp_servers(path=None, agent="chat"):
     """Start explicitly enabled servers, keep sessions alive, and close on exit."""
-    servers = load_servers(path)
+    if agent not in {"chat", "web"}:
+        raise ValueError("Unknown MCP agent")
+    servers = [(name, params, allowed) for name, params, allowed, agents in load_servers(path) if agent in agents]
     if not servers:
         yield []
         return

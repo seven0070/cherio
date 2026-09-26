@@ -110,3 +110,7 @@ Set `CHEERIO_RAG_CORRECTIVE=1` to check source/query word overlap and retry a we
 ## Skill review priority
 
 `python -m cheerio skill-scores` ranks recent approved-skill successes and failures in the local 30-event window. The smoothed failure rate helps you decide what to fix first; it never edits or installs a skill automatically. This is a small recent sample, not a benchmark, and it scores runtime success/failure rather than answer quality. `fix-skill NAME` still needs recorded failure evidence, tests and an explicit terminal APPROVE for replacement.
+
+## MCP per-agent scope
+
+Each enabled MCP server may set `"agents": ["chat"]` or `["web"]` (or both). The default is chat only. Cheerio opens only servers assigned to the active agent and exposes only their exact `allowed_tools` names. This routes tools, not actions: an allowed tool can still have broad side effects, and the server's startup code itself runs with local privileges.
