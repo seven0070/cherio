@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +63,11 @@ class BellaTests(unittest.TestCase):
     def test_persona_boundaries(self):
         for phrase in ("never claim to be human", "challenge procrastination", "sexual or romantic", "substitute for family", "risky or irreversible"):
             self.assertIn(phrase, PERSONA)
+
+    def test_frozen_handoff_fails_clearly(self):
+        with patch.object(sys, 'frozen', True, create=True):
+            with self.assertRaisesRegex(RuntimeError, 'Python source install'):
+                run(Path(self.tmp.name), {'schema': 'bella.cheerio.task.v1', 'approval': 'explicit-local-user', 'goal': 'x'})
 
     def test_bad_handoff_rejected(self):
         with self.assertRaises(ValueError):

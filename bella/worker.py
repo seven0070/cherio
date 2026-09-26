@@ -8,6 +8,8 @@ from pathlib import Path
 
 
 def run(checkout, request, *, runner=subprocess.run):
+    if getattr(sys, "frozen", False):
+        raise RuntimeError("Bella handoff needs a Python source install; packaged executable is not supported yet")
     checkout = Path(checkout).expanduser().resolve(strict=True)
     if request.get("schema") != "bella.cheerio.task.v1" or request.get("approval") != "explicit-local-user":
         raise ValueError("Unsupported handoff envelope")
