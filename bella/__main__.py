@@ -31,6 +31,9 @@ def main(argv=None):
                 from .voice import listen
                 text = listen()
                 print("You said: " + text)
+                if text.strip().startswith("/"):
+                    print("Voice commands are disabled. Type commands after reviewing them.")
+                    continue
                 voice_reply = True
             except (RuntimeError, KeyboardInterrupt) as exc:
                 print(f"Voice input stopped: {exc}")
