@@ -21,9 +21,9 @@ SETTINGS = Path.home() / ".cheerio" / "settings.json"
 def saved_local_model(path=SETTINGS):
     try:
         model = json.loads(path.read_text(encoding="utf-8")).get("local_model")
-        return model if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,100}", model) else DEFAULT_MODEL
+        return model if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,100}", model) else None
     except (OSError, ValueError, AttributeError):
-        return DEFAULT_MODEL
+        return None
 
 
 def save_local_model(model, path=SETTINGS):
@@ -42,15 +42,6 @@ def save_local_model(model, path=SETTINGS):
     os.replace(temp, path)
 
 RELEASES = "https://api.github.com/repos/seven0070/cherio/releases/latest"
-
-
-def local_model_recommendation(vram_mb=None, ram_mb=None):
-    """Conservative heuristic, not a guarantee a model fits. No GPU means CPU mode."""
-    if vram_mb is not None and vram_mb >= 12000 and (ram_mb is None or ram_mb >= 20000):
-        return "qwen3.5:9b"
-    if vram_mb is not None and vram_mb >= 6000 and (ram_mb is None or ram_mb >= 10000):
-        return "qwen3.5:4b"
-    return "qwen3.5:2b"
 
 
 def _ram_mb():
@@ -85,34 +76,42 @@ def _vram_mb():
 
 
 def setup_local(*, input_fn=input, output=print, runner=subprocess.run):
-    """Explicit approval before model download. No automatic hardware claims."""
+    """Choose one already-installed local model, without recommending or pulling any."""
     vram, ram = _vram_mb(), _ram_mb()
-    model = local_model_recommendation(vram, ram)
-    output(f"Detected NVIDIA VRAM: {vram or 'unknown'} MB; RAM: {ram or 'unknown'} MB.")
-    output(f"Suggested local model: {model}. Hardware estimate only; test on this PC.")
+    output(f"Detected NVIDIA VRAM: {vram or 'unknown'} MB; RAM: {ram or 'unknown'} MB. No model is picked from this estimate.")
     if not shutil.which("ollama"):
-        output("Ollama was not found. Install/start Ollama first; nothing downloaded.")
+        output("Ollama was not found. Install/start Ollama first.")
         return 1
     try:
         installed = runner(["ollama", "list"], capture_output=True, text=True, timeout=15, check=True).stdout
     except (subprocess.SubprocessError, OSError):
         output("Could not reach Ollama; start it before setup.")
         return 1
-    if any(line.split()[0] == model for line in installed.splitlines()[1:] if line.split()):
-        save_local_model(model)
-        output(f"{model} is already installed and selected locally. Run passport refresh to test tool calling.")
-        return 0
-    if input_fn(f"Pull {model} from Ollama (several GB)? Type APPROVE: ").strip() != "APPROVE":
-        output("Nothing downloaded.")
-        return 0
-    try:
-        runner(["ollama", "pull", model], check=True)
-    except (subprocess.SubprocessError, OSError):
-        output("Download failed. Check Ollama and disk space; no model was selected.")
+    models = [line.split()[0] for line in installed.splitlines()[1:] if line.split()]
+    if not models:
+        output("No local model is installed. Install one of your choosing with Ollama, then rerun setup. Nothing downloaded.")
         return 1
+    for index, name in enumerate(models, 1):
+        output(f"{index}. {name}")
+    answer = input_fn("Choose an installed model by number (blank to leave unchanged): ").strip()
+    if not answer:
+        output("No model selected.")
+        return 0
+    if not answer.isdigit() or not 1 <= int(answer) <= len(models):
+        output("Invalid choice; no model selected.")
+        return 2
+    model = models[int(answer) - 1]
     save_local_model(model)
-    output(f"Pulled {model} and selected locally. Test tool calling with `python -m cheerio passport refresh` before relying on it.")
+    output(f"Selected installed model {model}. Run passport refresh to test tool calling.")
     return 0
+
+
+def local_fallback(env, reason):
+    chosen = env.get("CHEERIO_LOCAL_MODEL") or saved_local_model()
+    if not chosen:
+        raise ValueError(f"OmniRoute {reason}; no local model selected. Run `python -m cheerio setup` first.")
+    return resolve_model_config(model=chosen, api_base=DEFAULT_API_BASE,
+                                api_key=DEFAULT_API_KEY, env={}), f"local fallback: {reason}"
 
 
 def select_config(*, model=None, api_base=None, api_key=None, env=None, check=_request):
@@ -120,13 +119,14 @@ def select_config(*, model=None, api_base=None, api_key=None, env=None, check=_r
     env = os.environ if env is None else env
     config = resolve_model_config(model, api_base, api_key, env)
     if not model and not env.get("CHEERIO_MODEL") and not env.get("OPENAI_MODEL") and not api_base and not env.get("CHEERIO_API_BASE") and not env.get("OPENAI_BASE_URL"):
-        config["model_id"] = saved_local_model()
+        selected = saved_local_model()
+        if selected:
+            config["model_id"] = selected
     if env.get("CHEERIO_GATEWAY_MODE") != "omniroute" or model or api_base or api_key or any(env.get(k) for k in ("CHEERIO_MODEL", "CHEERIO_API_BASE", "CHEERIO_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL", "OPENAI_API_KEY")):
         return config, "configured"
     key = env.get("CHEERIO_OMNIROUTE_KEY")
     if not key:
-        return resolve_model_config(model=env.get("CHEERIO_LOCAL_MODEL") or saved_local_model(),
-                                    api_base=DEFAULT_API_BASE, api_key=DEFAULT_API_KEY, env={}), "local fallback: no gateway key"
+        return local_fallback(env, "no gateway key")
     try:
         data = check(GATEWAY + "/models", key=key, timeout=3)
         # Some gateways omit virtual models from /models. A reachable authenticated
@@ -134,8 +134,7 @@ def select_config(*, model=None, api_base=None, api_key=None, env=None, check=_r
         if not isinstance(data.get("data"), list):
             raise ValueError("No model catalog")
     except (ValueError, OSError, urllib.error.HTTPError):
-        return resolve_model_config(model=env.get("CHEERIO_LOCAL_MODEL") or saved_local_model(),
-                                    api_base=DEFAULT_API_BASE, api_key=DEFAULT_API_KEY, env={}), "local fallback: gateway unavailable"
+        return local_fallback(env, "gateway unavailable")
     return {"model_id": "auto", "api_base": GATEWAY, "api_key": key}, "OmniRoute gateway preflight passed"
 
 
