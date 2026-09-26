@@ -12,12 +12,15 @@ def build_general_agent(model, max_steps=8):
         WikipediaSearchTool,
     )
 
+    from .skills import load_skills
+
     return ToolCallingAgent(
         tools=[
             DuckDuckGoSearchTool(max_results=5),
             VisitWebpageTool(max_output_length=8000),
             WikipediaSearchTool(),
             PythonInterpreterTool(),
+            *load_skills(),
         ],
         model=model,
         max_steps=max_steps,
