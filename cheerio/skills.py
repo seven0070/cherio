@@ -142,7 +142,14 @@ def load_skills(folder=None):
                 continue
             # Class body gets its values at construction; closure binds one spec per tool.
             def forward(self, text):
-                return run_skill(self._approved_spec, text)
+                from .memory import Memory
+                try:
+                    result = run_skill(self._approved_spec, text)
+                except Exception as exc:
+                    Memory().append("skill_use_failed", self._approved_spec["name"], str(exc)[:300])
+                    raise
+                Memory().append("skill_used", self._approved_spec["name"], "ok")
+                return result
 
             cls = type("ApprovedSkill", (Tool,), {
                 "name": spec["name"], "description": spec["description"],
@@ -162,8 +169,8 @@ def draft_skill(request, config):
     """Use the configured OpenAI-compatible endpoint, local Ollama by default."""
     from urllib.request import Request, urlopen
 
-    if not request.strip() or len(request) > 1000:
-        raise ValueError("Describe a skill in 1-1000 characters")
+    if not request.strip() or len(request) > 6000:
+        raise ValueError("Describe a skill in 1-6000 characters")
     endpoint = config["api_base"].rstrip("/")
     if not endpoint.startswith(("http://localhost:", "http://127.0.0.1:", "https://")):
         raise ValueError("Use a local HTTP endpoint or HTTPS API")
