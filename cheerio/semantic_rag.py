@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 import math
 import os
 from pathlib import Path
@@ -38,7 +39,7 @@ def build_vectors(db=None, embedder=embed, model=None):
     if not db.exists():
         raise ValueError("Index a document folder first")
     model = model or embedding_model()
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         chunks = conn.execute("SELECT rowid,content FROM chunks ORDER BY rowid LIMIT 3001").fetchall()
         if len(chunks) > 3000:
             raise ValueError("Semantic index limited to 3000 chunks; keyword search remains available")
@@ -66,7 +67,7 @@ def semantic_search(query, db=None, limit=5, embedder=embed, model=None):
     if not db.exists():
         return []
     model = model or embedding_model()
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='rag_vectors'").fetchone():
             return []
         rows = conn.execute("SELECT c.path,c.position,c.content,v.vector FROM rag_vectors v JOIN chunks c ON c.rowid=v.chunk_id WHERE v.model=?", (model,)).fetchall()
