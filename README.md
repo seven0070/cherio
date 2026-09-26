@@ -156,3 +156,17 @@ New `skill` and `fix-skill` proposals run their existing deterministic tests, th
 Cheerio's existing web tools can search and open live pages during tasks, but they do not guarantee current or accurately cited facts. `python -m cheerio world refresh` is an explicit fetch of BBC World RSS headlines and links into `%USERPROFILE%\.cheerio\world_digest.json`, timestamped and marked unverified. It is not a daily background task, full-article ingestion, or automatically inserted model memory. Check the linked article before relying on a headline.
 
 `python -m cheerio preferences set KEY VALUE`, `preferences show`, and `preferences forget KEY` store only explicitly supplied short notes under `%USERPROFILE%\.cheerio\preferences.json`. Chat sees them as untrusted context; it does not infer preferences from conversations. `memory forget` and `preferences forget` are separate stores. Do not save passwords or tokens. These changes are an experimental harness preview, not a claim to have increased the underlying model's intelligence. ZCode (https://github.com/zai-org/ZCode) was evaluated but not imported: it is a separate TypeScript/Node coding workbench, not a Cheerio Python dependency.
+
+## Bella: conversational front end (prototype)
+
+Bella lives in this repository as a separate Python package. She is the clearly artificial conversational front end; Cheerio remains the tool-running worker. The design is inspired by the user's role split, not copied from the unlicensed Jackywine/Bella project. Bella is non-romantic and non-sexual, encourages real relationships, and presses for concrete next steps without pretending to be human or claiming work she has not done.
+
+On Windows, after installing Cheerio's requirements and a local Ollama model, run from this repository root:
+
+```powershell
+py -m bella --cheerio .
+```
+
+Bella uses local Ollama `llama3.2` for conversation (`ollama pull llama3.2` first); Cheerio uses its own `CHEERIO_MODEL`, `CHEERIO_API_BASE`, and normal installation. Bella's chat does not dispatch work automatically. `/task GOAL` creates a pending request, `/approve ID` runs it through Cheerio, `/tasks` displays status, and `/cancel ID` cancels a pending request. Cheerio's own approval gates are separate and must not be bypassed. `/remember NOTE`, `/notes`, and `/forget ID` provide opt-in local notes. Bella stores notes and results in `~/.bella/bella.sqlite3` (or `BELLA_DB`). Chat history is not persisted. The handoff is a JSON `bella.cheerio.task.v1` envelope passed over stdin to a local subprocess, with result JSON returned to Bella. See `bella/core.py` and `bella/worker.py` for the contract.
+
+This is a CLI prototype, not a shipped voice or expressive interface, and not yet a broad autonomous personal assistant. The bridge is not a security sandbox: Cheerio tools can have side effects, and failures or timeouts may have left work partly done. Verify before retrying. No Bella code or assets were taken from Jackywine/Bella. Tests run with `python -m unittest discover -s tests -v`.
