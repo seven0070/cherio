@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 from cheerio.local_review import _local_endpoint, assess_local, decide
 from cheerio.__main__ import main
-from cheerio import local_review
 
 SPEC = {"name": "double_number", "description": "Double numeric text", "code": "def double_number(text):\n    return str(int(text)*2)", "tests": [{"input": "3", "expected": "6"}]}
 PASS = [{"input": "3", "expected": "6", "actual": "6", "pass": True}]
@@ -28,6 +27,10 @@ class LocalReviewTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 _local_endpoint({"api_base": url})
         self.assertEqual(_local_endpoint({"api_base": "http://127.0.0.1:11434/v1"}), "http://127.0.0.1:11434/v1")
+
+    def test_gateway_on_loopback_is_not_local_model(self):
+        with self.assertRaises(ValueError):
+            assess_local(SPEC, PASS, {"api_base": "http://127.0.0.1:20128/v1", "model_id": "auto"}, opener=lambda *a, **k: self.fail("network called"))
 
     def test_local_assessment_never_directly_installs(self):
         class Reply:
