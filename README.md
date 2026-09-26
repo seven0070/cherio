@@ -91,7 +91,7 @@ Explicitly index a folder with `python -m cheerio rag index "C:\Users\you\Docume
 
 ## MCP servers (opt-in)
 
-Install `pip install "smolagents[mcp,toolkit,openai]>=1.26"` to use MCP. Cheerio reads `%USERPROFILE%\.cheerio\mcp.json` (override `CHEERIO_MCP_CONFIG`) when chat starts. No file means no MCP connection. Example:
+Install `pip install "smolagents[mcp,toolkit,openai]>=1.26" "mcp>=1.9,<2" "websockets>=13"` to use MCP. The current smolagents 1.26 MCP adapter does not yet work with MCP SDK 2.x; pin 1.x until upstream supports 2.x. Cheerio reads `%USERPROFILE%\.cheerio\mcp.json` (override `CHEERIO_MCP_CONFIG`) when chat starts. No file means no MCP connection. Example:
 
 ```json
 {"servers": [{"name": "my-local-server", "enabled": true, "transport": "stdio", "command": "python", "args": ["C:\\path\\to\\server.py"], "env": {}, "allowed_tools": ["search"]}]}
