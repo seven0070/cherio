@@ -9,6 +9,7 @@ from .config import build_model, resolve_model_config
 from .skills import draft_skill, save_skill, test_skill
 from .memory import Memory
 from .improve import propose_skill_fix, approve_skill_fix
+from .core_proposals import propose_core
 
 
 def chat_loop(agent, memory=None):
@@ -38,7 +39,7 @@ def chat_loop(agent, memory=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
@@ -61,6 +62,22 @@ def main(argv=None):
 
     config = resolve_model_config(model=args.model, api_base=args.api_base, api_key=args.api_key)
     print(f"model: {config['model_id']}  endpoint: {config['api_base']}")
+    if args.mode == "propose-core":
+        try:
+            proposal = propose_core(config)
+        except (ValueError, OSError, KeyError) as exc:
+            print(f"Could not propose: {exc}", file=sys.stderr)
+            return 1
+        if proposal is None:
+            print("No core change suggested.")
+        else:
+            path, idea = proposal
+            print("Local suggestion only; untrusted model output, not code or a GitHub PR.")
+            print(idea)
+            print(f"Review note saved: {path}")
+            Memory().append("core_change_proposed", idea["file"], idea["title"])
+        return 0
+
     if args.mode == "fix-skill":
         if len(args.task) != 1:
             print("Use: fix-skill SKILL_NAME", file=sys.stderr)
