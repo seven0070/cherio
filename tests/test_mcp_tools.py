@@ -16,6 +16,10 @@ class MCPTests(unittest.TestCase):
                 self.assertEqual(tools, [])
             path.write_text(json.dumps({'servers':[{'name':'local','enabled':True,'transport':'streamable-http','url':'http://localhost:8000/mcp','allowed_tools':['search']}]}))
             self.assertEqual(load_servers(path)[0][0], 'local')
+            self.assertEqual(load_servers(path)[0][3], ['chat'])
+            path.write_text(json.dumps({'servers':[{'name':'web','enabled':True,'transport':'streamable-http','url':'http://localhost:8000/mcp','allowed_tools':['search'],'agents':['web']}]}))
+            self.assertEqual(load_servers(path)[0][3], ['web'])
+            with connect_mcp_servers(path, agent='chat') as tools: self.assertEqual(tools, [])
 
     def test_reject_unexpected_and_credentials(self):
         with tempfile.TemporaryDirectory() as d:
