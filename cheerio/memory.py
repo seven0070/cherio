@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import sqlite3
 
@@ -22,10 +23,15 @@ class Memory:
         with self._connect() as conn:
             conn.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, request TEXT NOT NULL, outcome TEXT NOT NULL, created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
 
+    @contextmanager
     def _connect(self):
         conn = sqlite3.connect(self.path, timeout=5)
         conn.execute("PRAGMA busy_timeout=5000")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def append(self, kind, request, outcome):
         if kind not in {"chat", "skill_created", "skill_failed", "skill_used", "skill_use_failed", "skill_fix_proposed", "core_change_proposed"}:
