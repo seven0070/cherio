@@ -1,1 +1,2 @@
-openai>=1.50,<3
+smolagents[toolkit,openai]>=1.26
+wikipedia-api>=0.6
