@@ -13,6 +13,7 @@ def build_general_agent(model, max_steps=8):
     )
 
     from .skills import load_skills
+    from .rag import build_rag_tool
 
     return ToolCallingAgent(
         tools=[
@@ -21,6 +22,7 @@ def build_general_agent(model, max_steps=8):
             WikipediaSearchTool(),
             PythonInterpreterTool(),
             *load_skills(),
+            build_rag_tool(),
         ],
         model=model,
         max_steps=max_steps,
