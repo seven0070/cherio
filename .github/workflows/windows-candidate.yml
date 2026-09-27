@@ -1,0 +1,31 @@
+name: Windows candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/cheerio-v0.1-rc]
+jobs:
+  test-and-package:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install and test
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+          python -m unittest discover -s tests -v
+      - name: Package executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --onedir --name Cheerio --paths . --collect-submodules cheerio --collect-all smolagents --collect-all wikipediaapi --collect-all duckduckgo_search packaging/cheerio_launcher.py
+          Compress-Archive -Path dist/Cheerio/* -DestinationPath Cheerio-v0.1-windows-candidate.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cheerio-v0.1-windows-candidate
+          path: Cheerio-v0.1-windows-candidate.zip
+          retention-days: 14

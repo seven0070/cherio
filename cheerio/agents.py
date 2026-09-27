@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def build_general_agent(model, max_steps=8):
+def build_general_agent(model, max_steps=8, extra_tools=()):
     """Everyday agent: answers questions, searches, reads pages, runs Python."""
     from smolagents import (
         DuckDuckGoSearchTool,
@@ -12,19 +12,27 @@ def build_general_agent(model, max_steps=8):
         WikipediaSearchTool,
     )
 
+    from .skills import load_skills
+    from .rag import build_rag_tool
+    from .cognee_memory import enabled, build_cognee_tool
+
     return ToolCallingAgent(
         tools=[
             DuckDuckGoSearchTool(max_results=5),
             VisitWebpageTool(max_output_length=8000),
             WikipediaSearchTool(),
             PythonInterpreterTool(),
+            *load_skills(),
+            build_rag_tool(),
+            *([build_cognee_tool()] if enabled() else []),
+            *extra_tools,
         ],
         model=model,
         max_steps=max_steps,
     )
 
 
-def build_web_agent(model, max_steps=10):
+def build_web_agent(model, max_steps=10, extra_tools=()):
     """Web agent: digs through the web to complete a research task."""
     from smolagents import DuckDuckGoSearchTool, ToolCallingAgent, VisitWebpageTool
 
@@ -32,6 +40,7 @@ def build_web_agent(model, max_steps=10):
         tools=[
             DuckDuckGoSearchTool(max_results=8),
             VisitWebpageTool(max_output_length=12000),
+            *extra_tools,
         ],
         model=model,
         max_steps=max_steps,
