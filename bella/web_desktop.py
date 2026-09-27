@@ -6,6 +6,7 @@ with a per-launch session token; every effect is checked here. No cloud chat sto
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import secrets
@@ -47,11 +48,16 @@ class Bridge:
     def store(self):
         return Store(self.data, recover=False)
 
+    @contextmanager
     def chat_db(self):
         self.data.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.data)
-        db.execute('CREATE TABLE IF NOT EXISTS local_chats (id TEXT PRIMARY KEY, title TEXT NOT NULL, messages TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
-        return db
+        try:
+            db.execute('CREATE TABLE IF NOT EXISTS local_chats (id TEXT PRIMARY KEY, title TEXT NOT NULL, messages TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def state(self):
         names = local_models()
