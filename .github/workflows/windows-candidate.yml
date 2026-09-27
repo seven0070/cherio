@@ -2,7 +2,7 @@ name: Windows candidate
 on:
   workflow_dispatch:
   push:
-    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview, feat/bella-companion]
+    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview, feat/bella-companion, feat/bella-desktop]
 jobs:
   test-and-package:
     runs-on: windows-latest
@@ -23,9 +23,13 @@ jobs:
         shell: pwsh
         run: |
           python -m PyInstaller --onedir --name Cheerio --paths . --collect-submodules cheerio --collect-all smolagents --collect-all wikipediaapi --collect-all duckduckgo_search packaging/cheerio_launcher.py
+          python -m PyInstaller --noconsole --onedir --name BellaDesktop --paths . --collect-submodules bella --collect-submodules cheerio --collect-all smolagents --collect-all wikipediaapi --collect-all duckduckgo_search packaging/bella_desktop_launcher.py
           Compress-Archive -Path dist/Cheerio/* -DestinationPath Cheerio-v0.1-windows-candidate.zip -Force
+          Compress-Archive -Path dist/BellaDesktop/* -DestinationPath Bella-desktop-windows-candidate.zip -Force
       - uses: actions/upload-artifact@v4
         with:
           name: Cheerio-v0.1-windows-candidate
-          path: Cheerio-v0.1-windows-candidate.zip
+          path: |
+            Cheerio-v0.1-windows-candidate.zip
+            Bella-desktop-windows-candidate.zip
           retention-days: 14
