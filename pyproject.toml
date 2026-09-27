@@ -12,7 +12,7 @@ dependencies = ["smolagents[toolkit,openai]>=1.26", "wikipedia-api>=0.6"]
 [project.scripts]
 cheerio = "cheerio.__main__:main"
 bella = "bella.__main__:main"
-bella-desktop = "bella.desktop:main"
+bella-desktop = "bella.web_desktop:main"
 
 [tool.setuptools.packages.find]
 include = ["cheerio*", "bella*"]
