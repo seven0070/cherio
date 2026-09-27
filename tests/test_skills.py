@@ -34,10 +34,10 @@ class SkillTests(unittest.TestCase):
                 save_skill(GOOD, folder)
 
     def test_cli_cannot_be_approved_by_model(self):
-        with tempfile.TemporaryDirectory() as d, patch.dict("os.environ", {"CHEERIO_SKILLS_DIR": d}), patch("cheerio.__main__.draft_skill", return_value=GOOD), patch("builtins.input", return_value="no"):
+        with tempfile.TemporaryDirectory() as d, patch.dict("os.environ", {"CHEERIO_SKILLS_DIR": d}), patch("cheerio.__main__.draft_skill", return_value=GOOD), patch("cheerio.__main__.assess_local", return_value={"confidence": 0.95, "concerns": [], "suggested_tests": []}), patch("builtins.input", return_value="no"):
             self.assertEqual(main(["skill", "double a number"]), 0)
             self.assertEqual(list(Path(d).glob("*.json")), [])
-        with tempfile.TemporaryDirectory() as d, patch.dict("os.environ", {"CHEERIO_SKILLS_DIR": d}), patch("cheerio.__main__.draft_skill", return_value=GOOD), patch("builtins.input", return_value="APPROVE"):
+        with tempfile.TemporaryDirectory() as d, patch.dict("os.environ", {"CHEERIO_SKILLS_DIR": d}), patch("cheerio.__main__.draft_skill", return_value=GOOD), patch("cheerio.__main__.assess_local", return_value={"confidence": 0.95, "concerns": [], "suggested_tests": []}), patch("builtins.input", return_value="APPROVE"):
             self.assertEqual(main(["skill", "double a number"]), 0)
             self.assertEqual(len(list(Path(d).glob("*.json"))), 1)
 
