@@ -9,3 +9,7 @@ dist/
 *.egg-info/
 build/
 dist/
+
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
