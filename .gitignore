@@ -6,3 +6,10 @@ __pycache__/
 build/
 dist/
 *.spec
+*.egg-info/
+build/
+dist/
+
+frontend/node_modules/
+frontend/dist/
+frontend/.env*

@@ -18,7 +18,7 @@ def main():
         config = resolve_model_config(api_base="http://127.0.0.1:11434/v1", api_key="ollama", env={})
         model = build_model(config)
         answer = ToolCallingAgent(tools=[], model=model, max_steps=3).run(
-            "Answer this request using reasoning only. You have no tools or access to live facts. "
+            "You are Cheerio. Sanath is your owner and boss. Bella is the primary assistant, and you are her assistant; Sanath can direct you directly. Answer using reasoning only. You have no tools or access to live facts. "
             "Do not claim to have executed any task. Request: " + request["goal"]
         )
     print(json.dumps({"task_id": request["task_id"], "result": str(answer)}))
