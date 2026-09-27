@@ -2,7 +2,7 @@ name: Windows candidate
 on:
   workflow_dispatch:
   push:
-    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview, feat/bella-companion, feat/bella-desktop]
+    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview, feat/bella-companion, feat/bella-desktop, feat/bella-windows-installer]
 jobs:
   test-and-package:
     runs-on: windows-latest
@@ -28,10 +28,26 @@ jobs:
           python -m PyInstaller --noconsole --onedir --name BellaDesktop --paths . --collect-submodules bella --collect-submodules cheerio --collect-all smolagents --collect-all wikipediaapi --collect-all duckduckgo_search --collect-all webview --add-data "frontend/dist;bella_frontend" packaging/bella_desktop_launcher.py
           Compress-Archive -Path dist/Cheerio/* -DestinationPath Cheerio-v0.1-windows-candidate.zip -Force
           Compress-Archive -Path dist/BellaDesktop/* -DestinationPath Bella-desktop-windows-candidate.zip -Force
+      - name: Compile and smoke-test Bella installer
+        shell: pwsh
+        run: |
+          choco install innosetup --version=6.7.1 -y --no-progress
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler was not installed" }
+          & $compiler 'packaging\bella-desktop.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+          $installer = 'dist-installer\BellaDesktop-v0.1.0-Setup.exe'
+          if (-not (Test-Path $installer)) { throw "Bella installer missing" }
+          $testDir = Join-Path $env:RUNNER_TEMP 'BellaInstallerSmoke'
+          $install = Start-Process -FilePath (Resolve-Path $installer) -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$testDir`"" -Wait -PassThru
+          if ($install.ExitCode -ne 0 -or -not (Test-Path (Join-Path $testDir 'BellaDesktop.exe'))) { throw "Installer smoke test failed" }
+          $uninstall = Start-Process -FilePath (Join-Path $testDir 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0 -or (Test-Path (Join-Path $testDir 'BellaDesktop.exe'))) { throw "Uninstall smoke test failed" }
       - uses: actions/upload-artifact@v4
         with:
           name: Cheerio-v0.1-windows-candidate
           path: |
             Cheerio-v0.1-windows-candidate.zip
             Bella-desktop-windows-candidate.zip
+            dist-installer/BellaDesktop-v0.1.0-Setup.exe
           retention-days: 14
