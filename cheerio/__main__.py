@@ -248,8 +248,8 @@ def main(argv=None):
     if args.auto_model and os.environ.get("CHEERIO_GATEWAY_MODE") == "omniroute":
         print("--auto-model cannot be combined with OmniRoute auto-routing", file=sys.stderr)
         return 2
-    # First interactive use cannot silently fall through to the legacy sample model.
-    if args.mode in ("chat", "web") and not args.auto_model and not any((args.model, args.api_base,
+    # Every model-using CLI mode must select an installed model before falling through to the legacy sample.
+    if args.mode in ("chat", "web", "skill", "fix-skill", "propose-core") and not args.auto_model and not any((args.model, args.api_base,
             os.environ.get("CHEERIO_MODEL"), os.environ.get("OPENAI_MODEL"),
             os.environ.get("CHEERIO_API_BASE"), os.environ.get("OPENAI_BASE_URL"),
             os.environ.get("CHEERIO_GATEWAY_MODE"))) and not saved_local_model():
