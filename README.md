@@ -101,7 +101,7 @@ For a remote server use `"transport": "streamable-http"` and `"url": "https://ex
 
 ## Optional local semantic search
 
-Keep the keyword-only RAG default. To add semantic search, run Ollama locally, `ollama pull embeddinggemma`, then `python -m cheerio rag embed` after indexing folders. `python -m cheerio rag hybrid "question"` combines keyword and vector ranks. To let chat use hybrid search, set `CHEERIO_RAG_SEMANTIC=1` before starting it. Set `CHEERIO_EMBED_MODEL` to change the local Ollama embedding model, then rebuild vectors. All embeddings stay in the same local SQLite DB; the code contacts only `127.0.0.1:11434`. Reindexing or forgetting any folder clears vectors to avoid stale references; re-run `rag embed`. This is a simple full scan/cosine search, not ANN, and will slow down on large indexes. If Ollama is unavailable, chat falls back to keyword search. Use a local chat model too if documents must never leave the device.
+Keyword search is the default; optional semantic search is available. To add it, run Ollama locally, `ollama pull embeddinggemma`, then `python -m cheerio rag embed` after indexing folders. `python -m cheerio rag hybrid "question"` combines keyword and vector ranks. To let chat use hybrid search, set `CHEERIO_RAG_SEMANTIC=1` before starting it. Set `CHEERIO_EMBED_MODEL` to change the local Ollama embedding model, then rebuild vectors. All embeddings stay in the same local SQLite DB; the code contacts only `127.0.0.1:11434`. Reindexing or forgetting any folder clears vectors to avoid stale references; re-run `rag embed`. This is a simple full scan/cosine search, not ANN, and will slow down on large indexes. If Ollama is unavailable, chat falls back to keyword search. Use a local chat model too if documents must never leave the device.
 
 ## Optional corrective retrieval
 
@@ -133,7 +133,7 @@ Run `python -m cheerio passport refresh` to inspect up to 20 local models listed
 
 ## v0.1 consolidated candidate (not released)
 
-This branch collects the drafts #3-#15 in one review branch. Nothing has been merged to `main`. The project still requires an actual Windows/Ollama test before a release.
+This branch collects the drafts #3-#15 in one review branch. Nothing has been merged to `main`. Windows CI passed for #16, but an actual Windows PC/Ollama test is still required before a release.
 
 Run `python -m cheerio setup` to check Ollama and show models already installed on this PC. It reports NVIDIA VRAM and RAM as context, but does not recommend or download any model. Pick one from the numbered list; Cheerio saves the choice in `%USERPROFILE%\.cheerio\settings.json`. If none is installed, choose and install a model yourself, then rerun setup. A model is not bundled in the candidate. Run `python -m cheerio passport refresh` to test its tool calling before relying on it.
 
@@ -156,3 +156,21 @@ New `skill` and `fix-skill` proposals run their existing deterministic tests, th
 Cheerio's existing web tools can search and open live pages during tasks, but they do not guarantee current or accurately cited facts. `python -m cheerio world refresh` is an explicit fetch of BBC World RSS headlines and links into `%USERPROFILE%\.cheerio\world_digest.json`, timestamped and marked unverified. It is not a daily background task, full-article ingestion, or automatically inserted model memory. Check the linked article before relying on a headline.
 
 `python -m cheerio preferences set KEY VALUE`, `preferences show`, and `preferences forget KEY` store only explicitly supplied short notes under `%USERPROFILE%\.cheerio\preferences.json`. Chat sees them as untrusted context; it does not infer preferences from conversations. `memory forget` and `preferences forget` are separate stores. Do not save passwords or tokens. These changes are an experimental harness preview, not a claim to have increased the underlying model's intelligence. ZCode (https://github.com/zai-org/ZCode) was evaluated but not imported: it is a separate TypeScript/Node coding workbench, not a Cheerio Python dependency.
+
+## Bella: conversational front end (prototype)
+
+Bella lives in this repository as a separate Python package. She is the clearly artificial conversational front end; Cheerio remains the tool-running worker. The design is inspired by the user's role split, not copied from the unlicensed Jackywine/Bella project. Bella is non-romantic and non-sexual, encourages real relationships, and presses for concrete next steps without pretending to be human or claiming work she has not done.
+
+On Windows, after installing Cheerio's requirements and a local Ollama model, run from this repository root:
+
+```powershell
+py -m cheerio bella
+```
+
+Bella uses local Ollama `llama3.2` for conversation (`ollama pull llama3.2` first); Cheerio uses its own `CHEERIO_MODEL`, `CHEERIO_API_BASE`, and normal installation. Bella's chat does not dispatch work automatically. `/task GOAL` creates a pending request, `/approve ID` asks Cheerio's restricted local model-only worker for an answer, `/tasks` displays status, and `/cancel ID` cancels a pending request. This worker has no Python, browser, MCP, skills, file, or outbound tools. It cannot fulfill actions in the world; for work that requires tools, stop here and use a separately reviewed workflow. Approval does not authorize a general Cheerio agent. `/remember NOTE`, `/notes`, and `/forget ID` provide opt-in local notes. Bella stores notes and results in `~/.cheerio/bella.sqlite3` (or `BELLA_DB`), next to Cheerio local state. Completed handoffs are also journaled to Cheerio memory and Bella reads explicit Cheerio preferences as context. Chat history is not persisted. The handoff is a JSON `bella.cheerio.task.v1` envelope passed over stdin to a local subprocess, with result JSON returned to Bella. See `bella/core.py` and `bella/worker.py` for the contract. Packaged `Cheerio.exe` handoff is not supported yet; use the Python source CLI for this prototype.
+
+This is a CLI prototype with an optional push-to-talk voice input and spoken replies, but not a continuous-listening or expressive visual interface, and not yet a broad autonomous personal assistant. The restricted model-only bridge is not an OS sandbox, but it does not expose Cheerio tools; it forces the Ollama loopback endpoint. Failed, timed-out or killed handoffs are marked interrupted and cannot be re-approved, including after restart. Inspect the result before creating a fresh task. No Bella code or assets were taken from Jackywine/Bella. Tests run with `python -m unittest discover -s tests -v`.
+
+### Microphone on Windows (optional preview)
+
+From the same Python environment, install `python -m pip install -r requirements-voice.txt`; leave Ollama running and pull `llama3.2` first. Then `python -m cheerio bella`, type `/voice`, press Enter to start recording and Enter again to stop. Bella prints the transcript before responding aloud. The first Whisper run may download a model; use a local cached model to avoid that network fetch. faster-whisper tries CUDA with float16 on the RTX GPU, then CPU int8 if CUDA setup fails. `pyttsx3` uses installed Windows system voices for offline speech output. Windows Settings > Privacy & security > Microphone must allow desktop apps to use the microphone. This is optional: without these dependencies, text chat still works. Do not speak `/approve` as a shortcut: you must review the exact pending task ID and type approval. This path has not been tested on the user's hardware.

@@ -2,7 +2,7 @@ name: Windows candidate
 on:
   workflow_dispatch:
   push:
-    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview]
+    branches: [release/cheerio-v0.1-rc, feat/cheerio-local-review-gate, feat/cheerio-intelligence-preview, feat/bella-companion]
 jobs:
   test-and-package:
     runs-on: windows-latest
