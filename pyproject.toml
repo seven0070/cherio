@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cherio-bella"
+version = "0.1.0.dev0"
+description = "Local-first Cheerio worker and Bella companion preview"
+requires-python = ">=3.10"
+dependencies = ["smolagents[toolkit,openai]>=1.26", "wikipedia-api>=0.6"]
+
+[project.scripts]
+cheerio = "cheerio.__main__:main"
+bella = "bella.__main__:main"
+bella-desktop = "bella.desktop:main"
+
+[tool.setuptools.packages.find]
+include = ["cheerio*", "bella*"]

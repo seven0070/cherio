@@ -5,18 +5,17 @@ import argparse
 import json
 import os
 from pathlib import Path
-from .core import Store, envelope, local_ollama
+from .core import Store, local_ollama
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Bella: local personal assistant, Cheerio work handoff")
     parser.add_argument("--data", type=Path, default=Path(os.environ.get("BELLA_DB", "~/.cheerio/bella.sqlite3")).expanduser())
     parser.add_argument("--model", default=os.environ.get("BELLA_MODEL", "llama3.2"))
-    parser.add_argument("--cheerio", type=Path, help="Local checkout of Cheerio (required only for /approve)")
+    parser.add_argument("--cheerio", type=Path, default=Path(__file__).resolve().parents[1], help="Local Cheerio checkout used for approved reasoning tasks")
     args = parser.parse_args(argv)
     store = Store(args.data)
     from cheerio.preferences import context as preference_context
-    from cheerio.memory import Memory
     print("Bella. /help for commands; /voice for push-to-talk; /exit to leave.")
     while True:
         voice_reply = False
@@ -79,19 +78,9 @@ def main(argv=None):
                     raise ValueError("Task is not pending")
                 if not args.cheerio:
                     raise ValueError("Pass --cheerio PATH to your local Cheerio checkout")
-                from .worker import run
-                store.transition(ident, "pending", "running")
+                from .actions import approve
                 print("Handing the request to Cheerio's local model-only worker. No tools or external actions.")
-                try:
-                    result = run(args.cheerio, envelope(task))
-                except BaseException:
-                    store.transition(ident, "running", "interrupted", "Worker did not return a verified result; inspect before creating a new task")
-                    raise
-                store.transition(ident, "running", "done", result)
-                try:
-                    Memory().append("chat", task["goal"], result)
-                except (OSError, ValueError) as exc:
-                    print(f"Cheerio journal not updated: {exc}")
+                result = approve(store, ident, args.cheerio)
                 print("Cheerio reported:\n" + result)
             except Exception as exc:
                 print(f"No completed handoff: {exc}")

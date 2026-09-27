@@ -79,7 +79,7 @@ def review_gate(candidate, results, config):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="cheerio", description="Cheerio AGI base layer")
-    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models", "passport", "setup", "update", "world", "preferences", "bella"], help="chat, web research, or draft a reviewed skill")
+    parser.add_argument("mode", choices=["chat", "web", "skill", "memory", "fix-skill", "propose-core", "rag", "skill-scores", "cognee", "models", "passport", "setup", "update", "world", "preferences", "bella", "desktop"], help="chat, web research, or draft a reviewed skill")
     parser.add_argument("task", nargs="*", help="for web mode: the task (otherwise asked interactively)")
     parser.add_argument("--model", help="model id, e.g. llama3.1:8b or gpt-4o-mini")
     parser.add_argument("--api-base", help="OpenAI-compatible endpoint URL")
@@ -93,6 +93,10 @@ def main(argv=None):
     parser.add_argument("--endpoint", action="append", default=[], help="additional OpenAI-compatible endpoint to inspect")
     parser.add_argument("--scan-folder", action="append", default=[], help="explicit folder to scan for GGUF files (no whole-drive crawl)")
     args = parser.parse_args(argv)
+
+    if args.mode == "desktop":
+        from bella.desktop import main as desktop_main
+        return desktop_main(["--model", args.model] if args.model else [])
 
     if args.mode == "bella":
         from bella.__main__ import main as bella_main
