@@ -47,7 +47,7 @@ class LocalReviewTests(unittest.TestCase):
     def test_new_skill_review_unavailable_prevents_save(self):
         import tempfile
         from pathlib import Path
-        with tempfile.TemporaryDirectory() as d, patch.dict('os.environ', {'CHEERIO_SKILLS_DIR': d}, clear=False), patch('cheerio.__main__.draft_skill', return_value=SPEC), patch('cheerio.__main__.assess_local', side_effect=ValueError('remote')), patch('builtins.input') as prompt:
+        with tempfile.TemporaryDirectory() as d, patch.dict('os.environ', {'CHEERIO_SKILLS_DIR': d}, clear=False), patch('cheerio.__main__.draft_skill', return_value=SPEC), patch('cheerio.__main__.saved_local_model', return_value='installed:latest'), patch('cheerio.__main__.assess_local', side_effect=ValueError('remote')), patch('builtins.input') as prompt:
             self.assertEqual(main(['skill', 'double a number']), 0)
             prompt.assert_not_called()
             self.assertEqual(list(Path(d).glob('*.json')), [])
@@ -62,7 +62,7 @@ class LocalReviewTests(unittest.TestCase):
             save_skill(SPEC, folder)
             Memory(folder / 'memory.db').append('skill_use_failed', SPEC['name'], 'failed')
             fixed = {**SPEC, 'tests': [*SPEC['tests'], {'input': '4', 'expected': '8'}]}
-            with patch.dict('os.environ', {'CHEERIO_SKILLS_DIR': d, 'CHEERIO_MEMORY_DB': str(folder/'memory.db')}, clear=False), patch('cheerio.__main__.draft_skill', return_value=fixed), patch('cheerio.improve.draft_skill', return_value=fixed), patch('cheerio.__main__.assess_local', side_effect=ValueError('remote')), patch('builtins.input') as prompt:
+            with patch.dict('os.environ', {'CHEERIO_SKILLS_DIR': d, 'CHEERIO_MEMORY_DB': str(folder/'memory.db')}, clear=False), patch('cheerio.__main__.draft_skill', return_value=fixed), patch('cheerio.__main__.saved_local_model', return_value='installed:latest'), patch('cheerio.improve.draft_skill', return_value=fixed), patch('cheerio.__main__.assess_local', side_effect=ValueError('remote')), patch('builtins.input') as prompt:
                 self.assertEqual(main(['fix-skill', SPEC['name']]), 0)
                 prompt.assert_not_called()
             self.assertEqual(json.loads((folder / (SPEC['name'] + '.json')).read_text())['tests'], SPEC['tests'])
