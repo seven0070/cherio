@@ -27,6 +27,31 @@ class StartupTests(unittest.TestCase):
             self.assertEqual(main(['chat']), 1)
             setup.assert_called_once()
 
+    def test_skill_needs_installed_model_before_drafting(self):
+        from cheerio.__main__ import main
+        with patch('cheerio.__main__.saved_local_model', return_value=None), patch('cheerio.__main__.setup_local', return_value=1) as setup, patch('cheerio.__main__.select_config') as selected, patch('cheerio.__main__.draft_skill') as draft, patch.dict('os.environ', {}, clear=True):
+            self.assertEqual(main(['skill', 'simple greeting']), 1)
+            setup.assert_called_once()
+            selected.assert_not_called()
+            draft.assert_not_called()
+
+    def test_skill_uses_selected_installed_model(self):
+        from cheerio.__main__ import main
+        with patch('cheerio.__main__.saved_local_model', return_value='installed:latest'), patch('cheerio.__main__.setup_local') as setup, patch('cheerio.__main__.select_config', return_value=({'model_id':'installed:latest','api_base':'http://localhost:11434/v1','api_key':'ollama'},'configured')) as selected, patch('cheerio.__main__.draft_skill', side_effect=ValueError('test stop')) as draft, patch.dict('os.environ', {}, clear=True):
+            self.assertEqual(main(['skill','simple greeting']), 1)
+            setup.assert_not_called()
+            selected.assert_called_once()
+            draft.assert_called_once()
+            self.assertEqual(draft.call_args.args[1]['model_id'], 'installed:latest')
+
+    def test_fix_skill_and_core_suggestion_need_selected_model(self):
+        from cheerio.__main__ import main
+        for argv in (['fix-skill','sample'], ['propose-core']):
+            with self.subTest(argv=argv), patch('cheerio.__main__.saved_local_model', return_value=None), patch('cheerio.__main__.setup_local', return_value=1) as setup, patch('cheerio.__main__.select_config') as selected, patch.dict('os.environ', {}, clear=True):
+                self.assertEqual(main(argv), 1)
+                setup.assert_called_once()
+                selected.assert_not_called()
+
     def test_gateway_preflight_and_local_fallback(self):
         env = {'CHEERIO_GATEWAY_MODE': 'omniroute', 'CHEERIO_OMNIROUTE_KEY': 'hidden'}
         cfg, source = s.select_config(env=env, check=lambda url, key, timeout: {'data':[{'id':'auto'}]})
