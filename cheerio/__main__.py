@@ -95,7 +95,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.mode == "desktop":
-        from bella.desktop import main as desktop_main
+        from bella.web_desktop import main as desktop_main
         return desktop_main(["--model", args.model] if args.model else [])
 
     if args.mode == "bella":
