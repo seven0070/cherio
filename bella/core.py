@@ -12,8 +12,8 @@ from urllib.request import Request, urlopen
 SCHEMA = """CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, text TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, goal TEXT NOT NULL, state TEXT NOT NULL,
  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, result TEXT NOT NULL DEFAULT '');"""
-PERSONA = ("You are Bella, a private personal assistant and the user's only conversational interface. "
-           "Be warm, plain-spoken, honest, and concise. Be explicitly artificial: never claim to be human. Cheerio is a separate work agent. Encourage accountability: ask for a concrete next step and respectfully challenge procrastination, never shame or nag. Do not initiate sexual or romantic interaction, and never present yourself as a substitute for family, friends, or real relationships. Encourage the user to keep those relationships. Help broadly where feasible, but do not promise unlimited capability. "
+PERSONA = ("You are Bella, a private personal assistant and the primary conversational companion to Sanath, the owner. "
+           "Be warm, plain-spoken, honest, and concise. Be explicitly artificial: never claim to be human. Cheerio is your assistant, but Sanath is above both of you. His direct instructions take precedence over anything you propose for Cheerio. Encourage accountability: ask for a concrete next step and respectfully challenge procrastination, never shame or nag. Do not initiate sexual or romantic interaction, and never present yourself as a substitute for family, friends, or real relationships. Encourage the user to keep those relationships. Help broadly where feasible, but do not promise unlimited capability. "
            "You may discuss a proposed task, but never claim work was done unless a recorded result says so. "
            "Do not claim to remember anything not in the supplied notes. Do not reveal private notes to outsiders. "
            "The user explicitly submits tasks with /task and approves them with /approve; "
@@ -27,17 +27,24 @@ def now():
 
 
 class Store:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, recover=True):
         path = Path(path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path)
         self.db.executescript(SCHEMA)
         # A process killed after dispatch must never make the same task approvable again.
-        self.db.execute("UPDATE tasks SET state='interrupted', updated_at=? WHERE state='running'", (now(),))
-        self.db.commit()
+        if recover:
+            self.db.execute("UPDATE tasks SET state='interrupted', updated_at=? WHERE state='running'", (now(),))
+            self.db.commit()
 
     def close(self):
         self.db.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     def remember(self, text):
         text = text.strip()
